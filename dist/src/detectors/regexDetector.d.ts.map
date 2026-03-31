@@ -1,0 +1,1 @@
+{"version":3,"file":"regexDetector.d.ts","sourceRoot":"","sources":["../../../src/detectors/regexDetector.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAc,MAAM,UAAU,CAAC;AAEtD,qBAAa,aAAa;IACxB,OAAO,CAAC,QAAQ,CAQd;IAEF,MAAM,CAAC,IAAI,EAAE,MAAM,GAAG,cAAc,EAAE;CAiBvC"}

@@ -1,0 +1,102 @@
+{
+  "name": "openenv-security",
+  "version": "1.0.0",
+  "description": "Production-grade OpenEnv environment for LLM data leakage prevention",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/src/index.js",
+      "require": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
+    },
+    "./env": {
+      "import": "./dist/src/env.js",
+      "require": "./dist/src/env.js",
+      "types": "./dist/src/env.d.ts"
+    },
+    "./types": {
+      "import": "./dist/src/types.js",
+      "require": "./dist/src/types.js",
+      "types": "./dist/src/types.d.ts"
+    },
+    "./llmGuard": {
+      "import": "./dist/src/llmGuard.js",
+      "require": "./dist/src/llmGuard.js",
+      "types": "./dist/src/llmGuard.d.ts"
+    },
+    "./secureLLMClient": {
+      "import": "./dist/src/secureLLMClient.js",
+      "require": "./dist/src/secureLLMClient.js",
+      "types": "./dist/src/secureLLMClient.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "dev": "ts-node src/index.ts",
+    "demo": "ts-node src/demo.ts",
+    "demo:blocking": "ts-node src/demoBlocking.ts",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "clean": "rm -rf dist && rm -rf coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "openenv",
+    "llm-security",
+    "data-leakage",
+    "reinforcement-learning",
+    "ai-security",
+    "prompt-injection",
+    "llm-guard",
+    "secure-llm"
+  ],
+  "author": "Rohith,Bhuvana,Jishnu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/openenv-security"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/openenv-security/issues"
+  },
+  "homepage": "https://github.com/yourusername/openenv-security#readme",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.40.0",
+    "jest": "^29.5.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {},
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.ts",
+      "**/?(*.)+(spec|test).ts"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "js",
+      "json"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/*.d.ts",
+      "!src/integration.example.ts"
+    ]
+  }
+}

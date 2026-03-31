@@ -1,0 +1,1 @@
+{"version":3,"file":"keywordAnalyzer.d.ts","sourceRoot":"","sources":["../../../src/detectors/keywordAnalyzer.ts"],"names":[],"mappings":"AAAA,qBAAa,eAAe;IAC1B,OAAO,CAAC,iBAAiB,CAavB;IAEF,OAAO,CAAC,IAAI,EAAE,MAAM,GAAG;QAAE,OAAO,EAAE,MAAM,CAAC;QAAC,KAAK,EAAE,MAAM,CAAA;KAAE,EAAE;IAa3D,aAAa,CAAC,QAAQ,EAAE;QAAE,OAAO,EAAE,MAAM,CAAC;QAAC,KAAK,EAAE,MAAM,CAAA;KAAE,EAAE,GAAG,MAAM;CAGtE"}

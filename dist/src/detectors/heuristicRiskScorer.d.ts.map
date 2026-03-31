@@ -1,0 +1,1 @@
+{"version":3,"file":"heuristicRiskScorer.d.ts","sourceRoot":"","sources":["../../../src/detectors/heuristicRiskScorer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAE,MAAM,UAAU,CAAC;AAE1C,qBAAa,mBAAmB;IAC9B,OAAO,CAAC,YAAY,CAQlB;IAEF,aAAa,CAAC,QAAQ,EAAE,cAAc,EAAE,GAAG,MAAM;IAiBjD,qBAAqB,CACnB,eAAe,EAAE,cAAc,EAAE,EACjC,eAAe,EAAE,cAAc,EAAE,GAChC,MAAM;CAuBV"}

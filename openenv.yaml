@@ -1,0 +1,117 @@
+# OpenEnv Security Environment
+name: openenv-security
+version: 1.0.0
+description: >
+  An OpenEnv environment for LLM data leakage prevention.
+  Trains AI agents to detect and prevent sensitive data exposure
+  (PII, credentials, API keys, prompt injection) in LLM inputs
+  through a multi-layer security pipeline.
+
+# Environment metadata
+author: "Rohith,Bhuvana,Jishnu"
+license: MIT
+tags:
+  - openenv
+  - llm-security
+  - data-leakage
+  - reinforcement-learning
+  - ai-security
+
+# API configuration
+api:
+  framework: fastapi
+  host: 0.0.0.0
+  port: 7860
+  endpoints:
+    reset: /reset
+    step: /step
+    state: /state
+    tasks: /tasks
+
+# Models
+models:
+  observation:
+    module: models
+    class: Observation
+    fields:
+      - prompt (str): The current prompt to analyse
+      - risk_score (float): Computed risk score 0-100
+      - threat_level (ThreatLevel): SAFE / WARNING / CRITICAL
+      - sensitivity (Sensitivity): LOW / MEDIUM / HIGH
+      - detected_entities (List[DetectedEntity]): Sensitive entities found
+      - attack_type (AttackType): Classified attack pattern
+      - reason (str): Explanation of analysis
+      - step_number (int): Current step in episode
+      - total_steps (int): Total steps in task
+      - history_summary (List[str]): Recent action history
+
+  action:
+    module: models
+    class: Action
+    fields:
+      - action_type (ActionType): ALLOW / MASK / BLOCK
+
+  reward:
+    module: models
+    class: Reward
+    range: [-1.0, 1.0]
+    fields:
+      - value (float): Reward value
+      - correct_action (ActionType): Optimal action
+      - is_correct (bool): Whether agent chose correctly
+      - explanation (str): Reasoning
+
+# Tasks
+tasks:
+  - name: simple_pii_detection
+    difficulty: easy
+    description: >
+      Detect single, obvious PII entities in prompts. Each prompt contains
+      at most one type of sensitive data. Choose ALLOW, MASK, or BLOCK.
+    num_scenarios: 8
+    grader:
+      module: tasks
+      class: TaskGrader
+      score_range: [0.0, 1.0]
+
+  - name: threat_classification
+    difficulty: medium
+    description: >
+      Classify prompts with multiple sensitive entities and mixed signals.
+      Correctly weigh overall threat level and choose appropriate responses.
+    num_scenarios: 10
+    grader:
+      module: tasks
+      class: TaskGrader
+      score_range: [0.0, 1.0]
+
+  - name: multi_step_attack
+    difficulty: hard
+    description: >
+      Detect coordinated multi-step attacks across sequential prompts.
+      Individual prompts may seem innocent but form malicious patterns
+      when viewed together. Includes prompt injection, credential
+      exfiltration, and social engineering.
+    num_scenarios: 12
+    grader:
+      module: tasks
+      class: TaskGrader
+      score_range: [0.0, 1.0]
+
+# Reward function
+reward:
+  type: shaped
+  description: >
+    Reward provides signal per step (not just end-of-episode).
+    +1.0 for correct BLOCK on critical, +0.7 for correct MASK on warning,
+    +0.5 for correct ALLOW on safe. Partial credit for adjacent-tier
+    decisions. Severe penalty (-1.0) for allowing critical threats.
+  range: [-1.0, 1.0]
+
+# Inference
+inference:
+  script: inference.py
+  required_env_vars:
+    - API_BASE_URL
+    - MODEL_NAME
+    - HF_TOKEN

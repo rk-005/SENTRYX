@@ -1,434 +1,268 @@
-# OpenEnv Security - LLM Data Leakage Prevention
+# OpenEnv Security — LLM Data Leakage Prevention
 
+[![OpenEnv](https://img.shields.io/badge/OpenEnv-compatible-brightgreen.svg)](https://github.com/openenv)
+[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
 
-A production-grade OpenEnv environment for simulating and training AI agents to prevent sensitive data leakage in LLM systems.
+A production-grade **OpenEnv environment** that trains AI agents to detect and prevent sensitive data leakage in LLM systems. The environment simulates real-world security threats — credential exfiltration, prompt injection, PII exposure, and multi-step social engineering attacks — and provides rich reward signals for reinforcement learning.
 
-## 🎯 Key Features
+## 🎯 Environment Description & Motivation
 
-### 🔍 Multi-layer Detection System
-- **Regex-based Pattern Detection**
-  - Email addresses
-  - Phone numbers
-  - API keys
-  - Credit cards
-  - Passwords & Secrets
-  - Authentication tokens
+Large Language Models are increasingly deployed in production, but they face serious security risks when users (accidentally or maliciously) include sensitive data in prompts. This environment models the real-world task of **LLM input security screening** — a task performed daily by security teams at companies using LLM APIs.
 
-- **Keyword Analysis**
-  - Sensitive term detection
-  - Configurable keyword weights
-  - Context-aware scoring
+The agent acts as a security analyst that must examine each incoming prompt and decide:
 
-- **Heuristic Risk Scoring**
-  - Entity-based scoring
-  - Diversity penalties
-  - Absolute risk quantification
+| Action | When to Use | Reward |
+|--------|------------|--------|
+| **ALLOW** | Prompt is safe, no sensitive data | +0.5 |
+| **MASK** | Moderate-risk data, should be redacted | +0.7 |
+| **BLOCK** | High-risk data, must be rejected | +1.0 |
 
-### 🧠 Context-Aware Analysis
-- **Multi-step Attack Detection**
-  - Email disclosure → Password request
-  - API key exposure → Secret leak
-  - Prompt injection patterns
+Wrong decisions are penalized: allowing critical threats gives **-1.0**, over-blocking safe prompts gives **-0.5**.
 
-- **Historical Correlation**
-  - Prompt history tracking
-  - Attack pattern recognition
-  - Escalation factors
+## 📦 Action & Observation Spaces
 
-- **Attack Classification**
-  - NORMAL
-  - CREDENTIAL_EXFILTRATION
-  - API_KEY_LEAK
-  - PROMPT_INJECTION
+### Observation Space (`Observation` Pydantic Model)
 
-### 🤖 Intelligent Decision Engine
-- **Risk-Based Actions**
-  - ALLOW: Risk < 40
-  - MASK: Risk 40-69
-  - BLOCK: Risk ≥ 70
-  - REWRITE: Safe alternative generation
+| Field | Type | Description |
+|-------|------|-------------|
+| `prompt` | `str` | The current prompt to analyse for threats |
+| `risk_score` | `float [0-100]` | Computed risk score |
+| `threat_level` | `SAFE \| WARNING \| CRITICAL` | Threat classification |
+| `sensitivity` | `LOW \| MEDIUM \| HIGH` | Data sensitivity level |
+| `detected_entities` | `List[DetectedEntity]` | Sensitive entities found (EMAIL, PHONE, API_KEY, CREDIT_CARD, PASSWORD, SECRET, TOKEN) |
+| `attack_type` | `NORMAL \| CREDENTIAL_EXFILTRATION \| API_KEY_LEAK \| PROMPT_INJECTION` | Attack pattern classification |
+| `reason` | `str` | Human-readable analysis explanation |
+| `step_number` | `int` | Current step in episode |
+| `total_steps` | `int` | Total steps in task |
+| `history_summary` | `List[str]` | Last 3 action summaries for context |
 
-- **Explainable Decisions**
-  - Reasoning for every action
-  - Entity detection details
-  - Context-based escalation info
+### Action Space (`Action` Pydantic Model)
 
-- **Dynamic Threat Assessment**
-  - Real-time threat level
-  - Sensitivity classification
-  - Episode tracking
+| Field | Type | Values |
+|-------|------|--------|
+| `action_type` | `ActionType` | `ALLOW`, `MASK`, `BLOCK` |
 
-### 🏋️ Reinforcement Learning Ready
-- **Optimized Reward Function**
-  - +1.0 for correct blocking
-  - +0.7 for accurate masking
-  - +0.5 for safe allowing
-  - -1.0 for wrong decisions
+### Reward Function
 
-- **Episode Tracking**
-  - Episode rewards accumulation
-  - Step-by-step reward tracking
-  - Performance metrics
+| Decision | Condition | Reward | Description |
+|----------|-----------|--------|-------------|
+| **BLOCK** | Risk ≥ 70 (CRITICAL) | **+1.0** | Perfect protection |
+| **MASK** | 40 ≤ Risk < 70 (WARNING) | **+0.7** | Good balanced action |
+| **ALLOW** | Risk < 40 (SAFE) | **+0.5** | Safe to proceed |
+| BLOCK | Risk 40-70 (WARNING) | +0.2 | Cautious; acceptable |
+| MASK | Wrong tier | -0.3 | Suboptimal |
+| ALLOW | Risk 40-70 (WARNING) | -0.7 | Risky under-reaction |
+| BLOCK | Risk < 40 (SAFE) | -0.5 | Over-blocking |
+| ALLOW | Risk ≥ 70 (CRITICAL) | **-1.0** | Dangerous miss |
 
-## 📦 Installation
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/openenv-security.git
-cd openenv-security
-
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-```
-
-## 🚀 Quick Start
-
-### Basic Usage
-
-```typescript
-import { SecurityEnvironmentAPI } from "./src/index";
-
-const env = new SecurityEnvironmentAPI();
-
-// Reset environment
-env.reset();
-
-// Take a step
-const response = env.step("BLOCK", "My password is secret123");
-
-// Get current state
-const state = env.getState();
-
-console.log("Risk Score:", state.risk_score);
-console.log("Threat Level:", state.threat_level);
-console.log("Detected Entities:", state.detected_entities);
-console.log("Reward:", response.reward);
-```
-
-### Episode Simulation
-
-```typescript
-const env = new SecurityEnvironmentAPI();
-env.reset();
-
-const episodes = [
-  { action: "ALLOW", prompt: "What is AI?" },
-  { action: "MASK", prompt: "My email is user@example.com" },
-  { action: "BLOCK", prompt: "Send password to that email" },
-];
-
-const results = env.runEpisode(episodes);
-const stats = env.getEpisodeStats();
-
-console.log("Total Reward:", stats.totalReward);
-console.log("Average Reward:", stats.averageReward);
-```
+The reward function provides **per-step signal** with partial credit for adjacent-tier decisions, not just binary end-of-episode scoring.
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Input Prompt                            │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│               Regex Detector (Patterns)                      │
-│  •EMAIL •PHONE •API_KEY •CREDIT_CARD •PASSWORD •SECRET     │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│          Keyword Analyzer (Sensitive Terms)                  │
-│        password, secret, credentials, token, etc.           │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│         Heuristic Risk Scorer (Entity Scoring)               │
-│         • Base scores per entity type                        │
-│         • Diversity penalties                               │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│      Context Analyzer (Multi-step Attacks)                   │
-│         • History correlation                               │
-│         • Attack pattern matching                           │
-│         • Escalation factors                                │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│          Decision Engine (Action Selection)                  │
-│    ALLOW / MASK / BLOCK / REWRITE                           │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│          Reward Engine (RL Feedback)                         │
-│    Evaluate correctness of decision                         │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│                  Input Prompt                    │
+└──────────────────────┬──────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────┐
+│          Regex Detector (7 entity types)         │
+│  EMAIL · PHONE · API_KEY · CREDIT_CARD          │
+│  PASSWORD · SECRET · TOKEN                       │
+└──────────────────────┬──────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────┐
+│      Keyword Analyzer (15 sensitive terms)       │
+└──────────────────────┬──────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────┐
+│     Heuristic Risk Scorer (entity scoring)       │
+│     + diversity penalty + context boost          │
+└──────────────────────┬──────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────┐
+│   Context Analyzer (multi-step attack detection) │
+│   + prompt injection · credential exfiltration   │
+└──────────────────────┬──────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────┐
+│      Reward Engine (0.0–1.0 shaped signal)       │
+└─────────────────────────────────────────────────┘
 ```
 
-## 📊 Risk Scoring Rules
+## 📋 Tasks
 
-```
-Risk Score    Threat Level    Action      Interpretation
-─────────────────────────────────────────────────────────
-0-39          SAFE            ALLOW       Safe to send to LLM
-40-69         WARNING         MASK        Mask sensitive data
-70-100        CRITICAL        BLOCK       Block from LLM
-```
+### Task 1: `simple_pii_detection` (Easy)
+- **Scenarios:** 8 prompts
+- **Difficulty:** Easy — single obvious PII entities
+- **Description:** Each prompt contains at most one type of sensitive data. The agent must identify whether to ALLOW, MASK, or BLOCK.
+- **Challenge:** Basic entity recognition and risk mapping.
 
-## 🎯 Detection Entities
+### Task 2: `threat_classification` (Medium)
+- **Scenarios:** 10 prompts
+- **Difficulty:** Medium — multiple entities and mixed signals
+- **Description:** Prompts contain overlapping risk factors (e.g., email + confidential keyword, credit card + secret). The agent must weigh the combined threat level.
+- **Challenge:** Handling ambiguity and multiple simultaneous risk factors.
 
-| Entity Type | Base Score | Pattern | Example |
-|-------------|-----------|---------|---------|
-| EMAIL | 20 | RFC 5322 compliant | user@example.com |
-| PHONE | 25 | International format | +1-555-123-4567 |
-| API_KEY | 50 | Prefix + alphanumeric | sk_live_1234567890 |
-| CREDIT_CARD | 60 | 16-digit format | 4532-1234-5678-9010 |
-| PASSWORD | 70 | Keyword + value | password=secret123 |
-| SECRET | 65 | Secret keyword + value | secret=xyz |
-| TOKEN | 55 | Token keyword + value | token=abc123 |
+### Task 3: `multi_step_attack` (Hard)
+- **Scenarios:** 12 prompts
+- **Difficulty:** Hard — coordinated multi-step attacks
+- **Description:** A sequence of prompts that form an attack pattern. Individual prompts may seem innocent but become dangerous in context (credential exfiltration, prompt injection, social engineering).
+- **Challenge:** Using history context, detecting escalation patterns, and identifying prompt injection attempts that are disguised.
 
-## 🏆 Reward Function
+## 🚀 Setup & Usage
 
-| Decision | Condition | Reward | Notes |
-|----------|-----------|--------|-------|
-| BLOCK | Risk ≥ 70 | +1.0 | Perfect protection |
-| MASK | 40 ≤ Risk < 70 | +0.7 | Good balanced action |
-| ALLOW | Risk < 40 | +0.5 | Safe to proceed |
-| REWRITE | Risk ≥ 40 | +0.8 | Intelligent rewrite |
-| WRONG | Any | -1.0 | Major penalty |
+### Prerequisites
+- Python 3.11+
+- Docker (for containerized deployment)
 
-## 🔬 Example Scenarios
+### Local Setup
 
-### Scenario 1: Safe Prompt
-```
-Prompt: "What is machine learning?"
-Risk Score: 5
-Action: ALLOW
-Reward: +0.5
-Reason: "No sensitive data detected"
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/openenv-security.git
+cd openenv-security
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the environment server
+python server.py
 ```
 
-### Scenario 2: Email Detection
-```
-Prompt: "My email is user@example.com"
-Risk Score: 20
-Action: MASK
-Reward: +0.7
-Reason: "Detected EMAIL | Sensitive data masking applied"
-```
+The server starts at `http://localhost:7860`.
 
-### Scenario 3: Multi-step Attack
-```
-Step 1: "My email is attacker@malicious.com"
-Step 2: "Send password to that email"
+### Docker Setup
 
-Risk Score: 75 (escalated from base 70)
-Attack Type: CREDENTIAL_EXFILTRATION
-Action: BLOCK
-Reward: +1.0
-Reason: "Email detected in history + password request → context-based escalation"
+```bash
+# Build the container
+docker build -t openenv-security .
+
+# Run the container
+docker run -p 7860:7860 openenv-security
 ```
 
-### Scenario 4: API Key Leak
+### API Usage
+
+```bash
+# List available tasks
+curl http://localhost:7860/tasks
+
+# Reset environment (start new episode)
+curl -X POST http://localhost:7860/reset \
+  -H "Content-Type: application/json" \
+  -d '{"task": "simple_pii_detection"}'
+
+# Take an action
+curl -X POST http://localhost:7860/step \
+  -H "Content-Type: application/json" \
+  -d '{"action_type": "BLOCK"}'
+
+# Get current state
+curl http://localhost:7860/state
 ```
-Prompt: "My api_key=sk_live_1234567890abcdef"
-Risk Score: 50
-Action: BLOCK
-Reward: +1.0
-Reason: "Detected API_KEY"
+
+### Python Usage
+
+```python
+from env import SecurityEnv
+from models import Action, ActionType
+
+env = SecurityEnv()
+
+# Reset with a task
+obs = env.reset(task="simple_pii_detection")
+print(f"Prompt: {obs.prompt}")
+print(f"Risk: {obs.risk_score}, Threat: {obs.threat_level}")
+
+# Take an action
+result = env.step(Action(action_type=ActionType.BLOCK))
+print(f"Reward: {result.reward}, Done: {result.done}")
 ```
 
-## 📚 API Reference
+### Running Inference
 
-### SecurityEnvironmentAPI
+```bash
+# Set environment variables
+export HF_TOKEN="your-api-key"
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+export ENV_URL="http://localhost:7860"  # or your HF Space URL
 
-#### reset()
-```typescript
-reset(): EnvironmentState
+# Start the environment server (in another terminal)
+python server.py
+
+# Run baseline inference
+python inference.py
 ```
-Initialize/reset the environment to initial state.
 
-#### step(action, prompt)
-```typescript
-step(action: Action, prompt: string): StepResponse
-```
-Execute one step in the environment.
+## 📊 Baseline Scores
 
-**Returns:**
-- `state`: Current environment state
-- `reward`: Reward for this action
-- `done`: Episode completion flag
+| Task | Difficulty | Scenarios | Baseline Score |
+|------|-----------|-----------|---------------|
+| `simple_pii_detection` | Easy | 8 | ~0.75 |
+| `threat_classification` | Medium | 10 | ~0.55 |
+| `multi_step_attack` | Hard | 12 | ~0.40 |
 
-#### getState()
-```typescript
-getState(): EnvironmentState
-```
-Get current environment state without modification.
-
-#### getStateJSON()
-```typescript
-getStateJSON(): string
-```
-Get formatted state as JSON string.
-
-#### runEpisode(episodes)
-```typescript
-runEpisode(episodes: Array<{action: Action, prompt: string}>): StepResponse[]
-```
-Run multiple steps in sequence.
-
-#### getEpisodeStats()
-```typescript
-getEpisodeStats(): {
-  totalSteps: number,
-  totalReward: number,
-  averageReward: number,
-  riskScores: number[]
-}
-```
-Get episode statistics.
+*Scores obtained with Qwen2.5-72B-Instruct at temperature=0.3.*
 
 ## 🧪 Testing
 
 ```bash
-# Run all tests
-npm test
+# Verify environment locally
+python -c "
+from env import SecurityEnv
+from models import Action, ActionType
 
-# Run tests in watch mode
-npm test:watch
+env = SecurityEnv()
+obs = env.reset('simple_pii_detection')
+print('Reset OK:', obs.prompt[:50])
 
-# Generate coverage report
-npm test:coverage
+result = env.step(Action(action_type=ActionType.ALLOW))
+print('Step OK:', result.reward, result.done)
+
+state = env.state()
+print('State OK:', state.step_number, '/', state.total_steps)
+print('All checks passed!')
+"
 ```
 
-Test coverage includes:
-- ✅ Entity detection (email, phone, API key, credit card)
-- ✅ Risk scoring algorithms
-- ✅ Context analysis & multi-step attacks
-- ✅ Decision engine logic
-- ✅ Reward function
-- ✅ History tracking
-- ✅ Edge cases
-- ✅ State consistency
-
-## 📈 Performance Benchmarks
+## 📁 Project Structure
 
 ```
-Benchmark Results:
-  Total Iterations: 1000
-  Total Time: ~500ms
-  Average Time per Step: ~0.5ms
-  Steps per Second: ~2000
+openenv-security/
+├── openenv.yaml          # OpenEnv metadata & spec
+├── Dockerfile            # Container configuration
+├── requirements.txt      # Python dependencies
+├── server.py             # FastAPI HTTP server (/reset, /step, /state)
+├── env.py                # Main environment class
+├── models.py             # Pydantic models (Observation, Action, Reward)
+├── detectors.py          # Regex, keyword, heuristic detectors
+├── context_analyzer.py   # Multi-step attack detection
+├── reward_engine.py      # Shaped reward function (0.0-1.0)
+├── tasks.py              # 3 tasks + graders (easy/medium/hard)
+├── inference.py          # Baseline inference script
+└── README.md             # This file
 ```
 
-## 🔧 Configuration
+## 🏆 Reward Design Details
 
-Edit `src/config.ts` to customize:
-- Risk thresholds
-- Entity base scores
-- Context escalation factors
-- Reward values
-- Sensitive keywords
-- Attack patterns
+The reward function has several interesting properties:
 
-## 📖 Usage Examples
-
-See `src/integration.example.ts` for comprehensive examples:
-- Basic usage
-- Episode simulation
-- Batch processing
-- Multi-step attack detection
-- RL agent integration
-- Stress testing
-- Performance benchmarking
-
-## 🤝 Integration Patterns
-
-### With RL Agents
-```typescript
-class MyAgent implements RLAgent {
-  decideAction(state: EnvironmentState): Action {
-    // Your decision logic
-  }
-  updatePolicy(reward: number, state: EnvironmentState): void {
-    // Your learning logic
-  }
-}
-
-const env = new SecurityEnvironmentAPI();
-trainAgentWithEnvironment(agent, prompts, iterations);
-```
-
-### With External Systems
-```typescript
-export { SecurityEnvironmentAPI, OpenEnvSecurity };
-export * from "./types";
-
-// Use in external projects
-import { SecurityEnvironmentAPI } from "openenv-security";
-```
-
-## 🐛 Troubleshooting
-
-**Issue: Detection not working**
-- Check regex patterns in `src/detectors/regexDetector.ts`
-- Verify input format matches expected patterns
-- Enable debug mode in `src/config.ts`
-
-**Issue: Risk scores unexpected**
-- Review entity base scores in `src/config.ts`
-- Check context escalation logic in `src/contextAnalyzer.ts`
-- Verify keyword weights in `src/detectors/keywordAnalyzer.ts`
-
-**Issue: Tests failing**
-- Clean build: `npm run clean && npm run build`
-- Reinstall dependencies: `rm -rf node_modules && npm install`
-- Check Node.js version: `node --version` (needs 18+)
+1. **Per-step signal**: Every action gets immediate feedback, not just end-of-episode.
+2. **Partial credit**: Adjacent-tier decisions get partial credit (e.g., MASK when BLOCK expected = -0.3, not -1.0).
+3. **Asymmetric penalties**: Allowing dangerous content (-1.0) is penalized more severely than over-blocking (-0.5), reflecting real-world security priorities.
+4. **Context-aware scoring**: Risk scores incorporate history, so the same prompt can have different risk levels depending on what came before.
 
 ## 📝 License
 
-MIT License - see LICENSE file for details
+MIT License — see LICENSE file for details.
 
-## 🙋 Support
+## 👥 Authors
 
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Check existing documentation
-- Review integration examples
-
-## 🎓 Use Cases
-
-- **AI Security Research**: Test detection algorithms
-- **RL Agent Training**: Train agents for data protection
-- **Enterprise Security**: Deploy LLM guardrails
-- **Academic Studies**: Study prompt injection & data leakage
-- **Hackathons**: Quick security prototyping
-- **Security Audits**: Evaluate LLM vulnerability
-
-## 🚀 Future Enhancements
-
-- [ ] LLM-based risk classification (GPT, Claude)
-- [ ] Advanced obfuscation detection
-- [ ] PII synthesis for testing
-- [ ] Real-time monitoring dashboard
-- [ ] Anomaly detection with ML
-- [ ] Blockchain audit trails
-- [ ] Multi-language support
-
-## ⭐ Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create feature branch
-3. Submit pull request
-4. Update tests & documentation
+Rohith, Bhuvana, Jishnu
 
 ---
 
-**Built for Production | Tested & Battle-Ready | Open Source**
+**Built for OpenEnv | Production-Grade Security | Reinforcement Learning Ready**

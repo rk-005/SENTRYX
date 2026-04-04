@@ -120,14 +120,14 @@ py -3.12 -m pip install -r requirements.txt
 Run the backend:
 
 ```powershell
-cd "C:\Users\rohit\OneDrive\Desktop\ai secure\openenv-security"
+cd "ai secure\openenv-security"
 .\start_backend.ps1
 ```
 
 Run the dashboard:
 
 ```powershell
-cd "C:\Users\rohit\OneDrive\Desktop\ai secure\openenv-security"
+cd "ai secure\openenv-security"
 .\start_dashboard.ps1
 ```
 

@@ -113,7 +113,7 @@ Use Python `3.12`.
 Install dependencies:
 
 ```powershell
-cd "C:\Users\rohit\OneDrive\Desktop\ai secure\openenv-security"
+cd "\ai secure\openenv-security"
 py -3.12 -m pip install -r requirements.txt
 ```
 

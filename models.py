@@ -1,17 +1,11 @@
-"""
-Pydantic models for OpenEnv Security Environment.
-Typed Observation, Action, and Reward models as required by the OpenEnv spec.
-"""
-
 from __future__ import annotations
 
+import os
 from enum import Enum
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-
-# ── Enums ──────────────────────────────────────────────────────────────
 
 class ActionType(str, Enum):
     ALLOW = "ALLOW"
@@ -48,104 +42,101 @@ class EntityType(str, Enum):
     TOKEN = "TOKEN"
 
 
-# ── Sub-models ─────────────────────────────────────────────────────────
+class Settings(BaseModel):
+    api_base_url: str = "https://router.huggingface.co/v1"
+    model_name: str = "Qwen/Qwen2.5-72B-Instruct"
+    hf_token: str | None = None
+
+    @classmethod
+    def from_env(cls) -> "Settings":
+        return cls(
+            api_base_url=os.getenv("API_BASE_URL", "https://router.huggingface.co/v1"),
+            model_name=os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct"),
+            hf_token=os.getenv("HF_TOKEN"),
+        )
+
+
+class PredictionRequest(BaseModel):
+    prompt: str = Field(..., min_length=1, description="Prompt text to classify.")
+
 
 class DetectedEntity(BaseModel):
-    """A single sensitive entity detected in a prompt."""
     type: EntityType
     value: str
-    confidence: float = Field(ge=0.0, le=1.0)
-    position: int = Field(ge=0)
+    confidence: float = Field(default=0.95, ge=0.0, le=1.0)
+    position: int = Field(default=0, ge=0)
+    start: int = Field(default=0, ge=0)
+    end: int = Field(default=0, ge=0)
+
+
+class DetectionResult(BaseModel):
+    action: ActionType
+    risk_score: int = Field(..., ge=0, le=100)
+    entities: List[DetectedEntity] = Field(default_factory=list)
+    reasoning: str
+
+
+class LLMReview(BaseModel):
+    action: ActionType
+    risk_score: int = Field(..., ge=0, le=100)
+    reasoning: str
+
+
+class PredictionResponse(BaseModel):
+    prompt: str
+    action: ActionType
+    risk_score: int = Field(..., ge=0, le=100)
+    threat_level: ThreatLevel
+    detected_entities: List[DetectedEntity] = Field(default_factory=list)
+    reasoning: str
+    processing_mode: Literal["rules", "hybrid"]
+    model_name: str | None = None
+
+
+class HealthResponse(BaseModel):
+    status: str
+    service: str
 
 
 class HistoryEntry(BaseModel):
-    """A single step in the episode history."""
     prompt: str
     action: ActionType
     risk_score: float = Field(ge=0.0, le=100.0)
-    detected_entities: List[DetectedEntity] = []
+    detected_entities: List[DetectedEntity] = Field(default_factory=list)
 
-
-# ── Core OpenEnv Models ────────────────────────────────────────────────
 
 class Action(BaseModel):
-    """Action the agent takes each step."""
-    action_type: ActionType = Field(
-        description="The security decision: ALLOW, MASK, or BLOCK"
-    )
+    action_type: ActionType = Field(description="The security decision: ALLOW, MASK, or BLOCK")
 
 
 class Observation(BaseModel):
-    """What the agent observes each step."""
-    prompt: str = Field(
-        description="The current prompt to analyze for security threats"
-    )
-    risk_score: float = Field(
-        ge=0.0, le=100.0, default=0.0,
-        description="Computed risk score for the current prompt (0-100)"
-    )
-    threat_level: ThreatLevel = Field(
-        default=ThreatLevel.SAFE,
-        description="Current threat classification"
-    )
-    sensitivity: Sensitivity = Field(
-        default=Sensitivity.LOW,
-        description="Sensitivity level of detected data"
-    )
-    detected_entities: List[DetectedEntity] = Field(
-        default_factory=list,
-        description="List of sensitive entities found in the prompt"
-    )
-    attack_type: AttackType = Field(
-        default=AttackType.NORMAL,
-        description="Classified attack pattern if any"
-    )
-    reason: str = Field(
-        default="",
-        description="Human-readable explanation of the analysis"
-    )
-    step_number: int = Field(
-        default=0, ge=0,
-        description="Current step within the episode"
-    )
-    total_steps: int = Field(
-        default=0, ge=0,
-        description="Total steps in this task"
-    )
-    history_summary: List[str] = Field(
-        default_factory=list,
-        description="Summary of previous actions for context (last 3)"
-    )
+    prompt: str = Field(description="The current prompt to analyze for security threats")
+    risk_score: float = Field(ge=0.0, le=100.0, default=0.0)
+    threat_level: ThreatLevel = Field(default=ThreatLevel.SAFE)
+    sensitivity: Sensitivity = Field(default=Sensitivity.LOW)
+    detected_entities: List[DetectedEntity] = Field(default_factory=list)
+    attack_type: AttackType = Field(default=AttackType.NORMAL)
+    reason: str = Field(default="")
+    step_number: int = Field(default=0, ge=0)
+    total_steps: int = Field(default=0, ge=0)
+    history_summary: List[str] = Field(default_factory=list)
 
 
 class Reward(BaseModel):
-    """Reward signal returned after each step."""
-    value: float = Field(
-        ge=-1.0, le=1.0,
-        description="Reward value: +1.0 (perfect) to -1.0 (worst)"
-    )
-    correct_action: ActionType = Field(
-        description="The action that would have been optimal"
-    )
-    is_correct: bool = Field(
-        description="Whether the agent chose the optimal action"
-    )
-    explanation: str = Field(
-        default="",
-        description="Why this reward was given"
-    )
+    value: float = Field(ge=0.0, le=1.0)
+    correct_action: ActionType
+    is_correct: bool
+    explanation: str = Field(default="")
 
 
 class StepResult(BaseModel):
-    """Full result from a single env.step() call."""
     observation: Observation
-    reward: float = Field(ge=-1.0, le=1.0)
+    reward: float = Field(ge=0.0, le=1.0)
     done: bool
     info: dict = Field(default_factory=dict)
 
 
 class EnvState(BaseModel):
-    """Full internal state of the environment."""
     current_task: Optional[str] = None
     step_number: int = 0
     total_steps: int = 0

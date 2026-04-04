@@ -1,49 +1,8 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Literal
 
-from models import DetectedEntity, DetectionResult, EntityType, ThreatLevel
-
-
-class RegexDetector:
-    PATTERNS: Dict[EntityType, re.Pattern] = {
-        EntityType.EMAIL: re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
-        EntityType.PHONE: re.compile(r"\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b"),
-        EntityType.API_KEY: re.compile(
-            r"(?:api[_\-]?key|apikey|api_token|access_token)[=:\s]+['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
-            re.IGNORECASE,
-        ),
-        EntityType.CREDIT_CARD: re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b"),
-        EntityType.PASSWORD: re.compile(
-            r"(?:password|passwd|pwd)[=:\s]+['\"]?([^'\"\s;]+)['\"]?",
-            re.IGNORECASE,
-        ),
-        EntityType.SECRET: re.compile(
-            r"(?:secret|api_secret|client_secret)[=:\s]+['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
-            re.IGNORECASE,
-        ),
-        EntityType.TOKEN: re.compile(
-            r"(?:token|auth_token|bearer)[=:\s]+['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
-            re.IGNORECASE,
-        ),
-    }
-
-    def detect(self, text: str) -> List[DetectedEntity]:
-        entities: List[DetectedEntity] = []
-        for entity_type, pattern in self.PATTERNS.items():
-            for match in pattern.finditer(text):
-                entities.append(
-                    DetectedEntity(
-                        type=entity_type,
-                        value=match.group(0),
-                        confidence=0.95,
-                        position=match.start(),
-                        start=match.start(),
-                        end=match.end(),
-                    )
-                )
-        return entities
+from models import DetectedEntity, DetectionResult, ThreatLevel
 
 
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
@@ -126,12 +85,12 @@ class SecurityDetector:
 
     def threat_level_from_score(self, risk_score: int) -> ThreatLevel:
         if risk_score >= 70:
-            return ThreatLevel.CRITICAL
+            return "CRITICAL"
         if risk_score >= 40:
-            return ThreatLevel.WARNING
-        return ThreatLevel.SAFE
+            return "WARNING"
+        return "SAFE"
 
-    def _action_from_score(self, risk_score: int) -> Literal["ALLOW", "MASK", "BLOCK"]:
+    def _action_from_score(self, risk_score: int) -> str:
         if risk_score >= 70:
             return "BLOCK"
         if risk_score >= 40:
@@ -140,22 +99,20 @@ class SecurityDetector:
 
     def _extract_entities(self, text: str) -> list[DetectedEntity]:
         entities: list[DetectedEntity] = []
-        entities.extend(self._scan(text, EMAIL_RE, EntityType.EMAIL))
-        entities.extend(self._scan(text, PHONE_RE, EntityType.PHONE))
-        entities.extend(self._scan(text, PASSWORD_RE, EntityType.PASSWORD))
-        entities.extend(self._scan(text, API_KEY_RE, EntityType.API_KEY))
-        entities.extend(self._scan(text, CREDIT_CARD_RE, EntityType.CREDIT_CARD))
+        entities.extend(self._scan(text, EMAIL_RE, "EMAIL"))
+        entities.extend(self._scan(text, PHONE_RE, "PHONE"))
+        entities.extend(self._scan(text, PASSWORD_RE, "PASSWORD"))
+        entities.extend(self._scan(text, API_KEY_RE, "API_KEY"))
+        entities.extend(self._scan(text, CREDIT_CARD_RE, "CREDIT_CARD"))
         return entities
 
-    def _scan(self, text: str, pattern: re.Pattern[str], entity_type: EntityType) -> list[DetectedEntity]:
+    def _scan(self, text: str, pattern: re.Pattern[str], entity_type: str) -> list[DetectedEntity]:
         results: list[DetectedEntity] = []
         for match in pattern.finditer(text):
             results.append(
                 DetectedEntity(
                     type=entity_type,
                     value=match.group(0),
-                    confidence=0.95,
-                    position=match.start(),
                     start=match.start(),
                     end=match.end(),
                 )

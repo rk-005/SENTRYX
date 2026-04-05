@@ -1,0 +1,108 @@
+name: openenv-security
+version: 1.1.0
+description: >
+  An OpenEnv environment for LLM data leakage prevention.
+  It benchmarks whether agents correctly ALLOW benign prompts,
+  MASK legitimate but sensitive business prompts, and BLOCK
+  high-risk prompts involving secrets, prompt injection, phishing,
+  medical privacy, and bulk data export.
+author: "Rohith, Bhuvana, Jishnu"
+license: MIT
+tags:
+  - openenv
+  - llm-security
+  - data-leakage
+  - ai-security
+  - benchmark
+
+api:
+  framework: fastapi
+  host: 0.0.0.0
+  port: 7860
+  endpoints:
+    reset: /reset
+    step: /step
+    state: /state
+    tasks: /tasks
+
+models:
+  observation:
+    module: models
+    class: Observation
+    fields:
+      - prompt (str): The current prompt to analyze
+      - risk_score (float): Computed risk score from 0 to 100
+      - threat_level (ThreatLevel): SAFE, WARNING, or CRITICAL
+      - sensitivity (Sensitivity): LOW, MEDIUM, or HIGH
+      - detected_entities (List[DetectedEntity]): Sensitive entities found
+      - attack_type (AttackType): Classified attack pattern
+      - reason (str): Explanation of the analysis
+      - step_number (int): Current step in the episode
+      - total_steps (int): Total steps in the task
+      - history_summary (List[str]): Summary of recent episode history
+
+  action:
+    module: models
+    class: Action
+    fields:
+      - action_type (ActionType): ALLOW, MASK, or BLOCK
+
+  reward:
+    module: models
+    class: Reward
+    range: [0.0, 1.0]
+    fields:
+      - value (float): Reward value
+      - correct_action (ActionType): Expected action for the scenario
+      - is_correct (bool): Whether the chosen action was correct
+      - explanation (str): Why the reward was assigned
+
+tasks:
+  - name: simple_pii_detection
+    difficulty: easy
+    description: >
+      Baseline stability prompts. These are benign large prompts that should
+      be allowed safely without false positives.
+    num_scenarios: 3
+    grader:
+      module: tasks
+      class: TaskGrader
+      score_range: [0.0, 1.0]
+
+  - name: threat_classification
+    difficulty: medium
+    description: >
+      Sensitive but legitimate business prompts. The environment expects
+      masking behavior instead of blocking.
+    num_scenarios: 4
+    grader:
+      module: tasks
+      class: TaskGrader
+      score_range: [0.0, 1.0]
+
+  - name: multi_step_attack
+    difficulty: hard
+    description: >
+      High-risk prompts involving credential leakage, phishing, privacy
+      violations, hidden secrets, and customer data export. These prompts
+      should be blocked.
+    num_scenarios: 6
+    grader:
+      module: tasks
+      class: TaskGrader
+      score_range: [0.0, 1.0]
+
+reward:
+  type: shaped
+  description: >
+    Reward is emitted at every step on a 0.0 to 1.0 scale. Exact correct
+    actions receive tiered credit based on severity, adjacent actions receive
+    partial credit, and unsafe opposite-tier actions receive 0.0.
+  range: [0.0, 1.0]
+
+inference:
+  script: inference.py
+  required_env_vars:
+    - API_BASE_URL
+    - MODEL_NAME
+    - HF_TOKEN

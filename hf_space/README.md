@@ -1,5 +1,5 @@
 ---
-title: SENTRYX Security API
+title: SENTRYX OpenEnv Security
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -7,9 +7,9 @@ app_port: 7860
 pinned: false
 ---
 
-# SENTRYX Security API
+# SENTRYX OpenEnv Security
 
-Minimal Hugging Face Docker Space bundle for prompt security classification.
+Deployable Hugging Face Docker Space bundle for the OpenEnv benchmark server.
 
 Environment variables:
 
@@ -20,6 +20,11 @@ Environment variables:
 Endpoints:
 
 - `GET /`
+- `GET /tasks`
+- `POST /reset`
+- `POST /step`
+- `GET /state`
+- `POST /analyze`
 - `POST /predict`
 
 ## Deploy
@@ -35,10 +40,10 @@ Endpoints:
 ## Local run
 
 ```bash
-docker build -t sentryx-hf-space .
+docker build -t sentryx-openenv-space .
 docker run --rm -p 7860:7860 \
   -e API_BASE_URL="$API_BASE_URL" \
   -e MODEL_NAME="$MODEL_NAME" \
   -e HF_TOKEN="$HF_TOKEN" \
-  sentryx-hf-space
+  sentryx-openenv-space
 ```

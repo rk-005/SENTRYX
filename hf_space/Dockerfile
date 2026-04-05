@@ -15,6 +15,11 @@ COPY server.py .
 COPY inference.py .
 COPY detectors.py .
 COPY models.py .
+COPY context_analyzer.py .
+COPY env.py .
+COPY reward_engine.py .
+COPY tasks.py .
+COPY openenv.yaml .
 
 EXPOSE 7860
 

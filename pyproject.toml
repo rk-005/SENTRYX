@@ -14,9 +14,10 @@ authors = [
   { name = "Jishnu" }
 ]
 dependencies = [
+  "openenv-core>=0.2.0,<0.3.0",
   "fastapi==0.115.12",
   "uvicorn[standard]==0.34.0",
-  "openai==1.75.0",
+  "openai>=2.7.2,<3.0.0",
   "pydantic==2.11.3",
   "requests==2.32.3",
   "PyYAML==6.0.2",
@@ -28,7 +29,7 @@ dev = [
 ]
 
 [project.scripts]
-server = "server:main"
+server = "server.app:main"
 
 [tool.setuptools]
 py-modules = [
@@ -39,6 +40,6 @@ py-modules = [
   "inference",
   "models",
   "reward_engine",
-  "server",
   "tasks",
 ]
+packages = ["server"]

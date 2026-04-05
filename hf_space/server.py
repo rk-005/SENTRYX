@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import uvicorn
-
-from app import app
-
-
-def main() -> None:
-    uvicorn.run("app:app", host="0.0.0.0", port=7860)
+from server.app import app, main
 
 
 if __name__ == "__main__":

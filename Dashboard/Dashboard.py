@@ -9,6 +9,7 @@ Backend:
 """
 import streamlit as st
 from datetime import datetime
+from html import escape
 
 try:
     from . import api_client as api
@@ -121,6 +122,11 @@ section[data-testid="stSidebar"] { display: none; }
   content:''; position:absolute; top:0; left:0; right:0; height:1px;
   background:linear-gradient(90deg,transparent,rgba(0,234,255,0.35),transparent);
 }
+.card, .alert, .reason-box, .tl-row, .entity-tag {
+  min-width:0;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
 .card-title {
   font-family:'Share Tech Mono',monospace;
   font-size:10px; letter-spacing:3px; color:var(--blue);
@@ -147,6 +153,7 @@ section[data-testid="stSidebar"] { display: none; }
   padding:12px 15px; border-radius:6px; margin:10px 0;
   font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px; line-height:1.5;
 }
+.alert span:last-child { min-width:0; overflow-wrap:anywhere; word-break:break-word; }
 .a-crit { background:rgba(255,59,59,0.07);  border-left:3px solid var(--red);    color:#ff7a7a;
           animation:pulse-r 2s ease-in-out infinite; }
 .a-warn { background:rgba(255,214,10,0.07); border-left:3px solid var(--yellow); color:var(--yellow); }
@@ -171,12 +178,13 @@ section[data-testid="stSidebar"] { display: none; }
   border-left:3px solid var(--blue);
   padding:11px 14px; border-radius:5px;
   color:var(--muted); font-size:14px; line-height:1.6;
+  max-height:180px; overflow:auto;
 }
 
 /*  Timeline  */
 .tl-head, .tl-row {
   display:grid;
-  grid-template-columns:26px 1fr 64px 44px 54px;
+  grid-template-columns:26px minmax(0,1fr) 64px 44px 54px;
   gap:10px; align-items:center;
   padding:7px 12px; font-size:13px;
 }
@@ -184,7 +192,7 @@ section[data-testid="stSidebar"] { display: none; }
 .tl-row  { background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:5px; margin-bottom:4px; transition:border-color 0.2s; }
 .tl-row:hover { border-color:var(--glow); }
 .tl-idx  { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--muted); }
-.tl-p    { color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tl-p    { color:var(--text); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tl-a    { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1px; text-align:center; padding:2px 5px; border-radius:3px; }
 .tl-r    { font-family:'Share Tech Mono',monospace; font-size:11px; text-align:right; }
 .tl-ts   { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); text-align:right; }
@@ -249,6 +257,7 @@ section[data-testid="stSidebar"] { display: none; }
   background:rgba(0,0,0,0.35) !important; border:1px solid var(--border) !important;
   color:var(--text) !important; font-family:'Rajdhani',sans-serif !important;
   font-size:14px !important; border-radius:6px !important;
+  overflow-wrap:anywhere !important; word-break:break-word !important; white-space:pre-wrap !important;
 }
 .stTextArea textarea:focus { border-color:var(--blue) !important; box-shadow:0 0 8px rgba(0,234,255,0.18) !important; }
 .stTextArea label, .stSelectbox label {
@@ -299,16 +308,26 @@ for _k, _v in _DEFAULTS.items():
 # HELPERS
 # 
 def pill(text: str, cls: str) -> str:
-    return f'<span class="pill p-{cls}">{text}</span>'
+    return f'<span class="pill p-{cls}">{escape_html(text)}</span>'
+
+
+def escape_html(value: object) -> str:
+    return escape(str(value), quote=True)
+
+
+def clip_text(value: object, limit: int = 180) -> str:
+    text = str(value)
+    return (text[:limit] + "...") if len(text) > limit else text
 
 
 def alert_html(threat: str, action: str, reason: str) -> str:
     icon = {"CRITICAL": "CRIT", "WARNING": "WARN", "SAFE": "SAFE"}.get(threat, "INFO")
     cls  = {"CRITICAL": "a-crit", "WARNING": "a-warn", "SAFE": "a-safe"}.get(threat, "a-safe")
-    snip = (reason[:180] + "...") if len(reason) > 180 else reason
+    snip = escape_html(clip_text(reason, 180))
+    action_text = escape_html(action)
     return (f'<div class="alert {cls}">'
             f'<span style="font-size:15px">{icon}</span>'
-            f'<span>[{action}] {snip}</span></div>')
+            f'<span>[{action_text}] {snip}</span></div>')
 
 
 def tl_row_html(idx: int, h: dict) -> str:
@@ -316,9 +335,8 @@ def tl_row_html(idx: int, h: dict) -> str:
     ac = _ACV.get(a, "var(--text)")
     r  = int(h.get("risk_score", 0))
     rc = _TCV.get(h.get("threat_level", "SAFE"), "var(--text)")
-    p  = h.get("prompt", "")
-    p  = (p[:44] + "...") if len(p) > 44 else p
-    ts = h.get("ts", "")
+    p  = escape_html(clip_text(h.get("prompt", ""), 80))
+    ts = escape_html(h.get("ts", ""))
     return (f'<div class="tl-row">'
             f'<span class="tl-idx">#{idx:02d}</span>'
             f'<span class="tl-p">{p}</span>'
@@ -559,14 +577,14 @@ if has_result and col2 is not None:
         # Detected entities
         st.markdown('<div class="card-title" style="margin-top:14px">DETECTED ENTITIES</div>', unsafe_allow_html=True)
         if entities:
-            tags_html = "".join(f'<span class="entity-tag">{e}</span>' for e in entities)
+            tags_html = "".join(f'<span class="entity-tag">{escape_html(e)}</span>' for e in entities)
             st.markdown(f'<div class="entity-grid">{tags_html}</div>', unsafe_allow_html=True)
         else:
             st.markdown('<span class="entity-none">NO SENSITIVE ENTITIES DETECTED</span>', unsafe_allow_html=True)
 
         # Reason
         st.markdown('<div class="card-title" style="margin-top:14px">ANALYSIS REASON</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="reason-box">{reason}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="reason-box">{escape_html(reason)}</div>', unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 

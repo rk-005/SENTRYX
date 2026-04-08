@@ -41,6 +41,9 @@ POSITIVE_SENSITIVE_REQUEST_RE = re.compile(
     r"email\s+addresses?|physical\s+addresses?"
     r")\b"
 )
+POSITIVE_REQUEST_NEGATION_RE = re.compile(
+    r"(?i)\b(avoid|without|must\s+not|do\s+not|don't|mustn't|should\s+not|not|no|never|exclude|excluding)\b"
+)
 PROMPT_INJECTION_RE = re.compile(
     r"(?i)(ignore\s+(all\s+)?previous\s+instructions?|reveal\s+(the\s+)?system\s+prompt|"
     r"override\s+(security|instructions)|forget\s+everything\s+above|developer\s+mode|"
@@ -282,7 +285,8 @@ class SecurityEnv:
         if EXFIL_RE.search(prompt) and HIGH_VALUE_TARGET_RE.search(prompt):
             risk = max(risk, 78)
 
-        if POSITIVE_SENSITIVE_REQUEST_RE.search(prompt):
+        positive_sensitive_request = self._has_positive_sensitive_request(prompt)
+        if positive_sensitive_request:
             risk = max(risk, 85)
             if DATABASE_CONNECTION_RE.search(prompt) or INTERNAL_SERVER_URL_RE.search(prompt):
                 attack_type = AttackType.API_KEY_LEAK
@@ -310,7 +314,11 @@ class SecurityEnv:
         if CREDENTIAL_ASSIGNMENT_RE.search(prompt) and EXFIL_RE.search(prompt):
             risk = max(risk, 80)
         elif CREDENTIAL_ASSIGNMENT_RE.search(prompt):
-            risk = max(risk, 55)
+            risk = max(risk, 85)
+            if re.search(r"(?i)\bapi[_\- ]?key\b", prompt):
+                attack_type = AttackType.API_KEY_LEAK
+            else:
+                attack_type = AttackType.CREDENTIAL_EXFILTRATION
 
         if history_entity_names and "EMAIL" in history_entity_names and EMAIL_RESET_RE.search(prompt):
             risk = max(risk, 80)
@@ -372,7 +380,7 @@ class SecurityEnv:
         if entities:
             unique_entities = ", ".join(sorted({entity.type.value for entity in entities}))
             parts.append(f"Sensitive entities found: {unique_entities}.")
-        elif POSITIVE_SENSITIVE_REQUEST_RE.search(prompt):
+        elif self._has_positive_sensitive_request(prompt):
             parts.append("Prompt requests inclusion or transfer of sensitive artifacts.")
 
         if threat_level == ThreatLevel.CRITICAL:
@@ -414,3 +422,12 @@ class SecurityEnv:
         if risk < 70.0:
             return Sensitivity.MEDIUM
         return Sensitivity.HIGH
+
+    @staticmethod
+    def _has_positive_sensitive_request(prompt: str) -> bool:
+        for match in POSITIVE_SENSITIVE_REQUEST_RE.finditer(prompt):
+            prefix = prompt[max(0, match.start() - 45):match.start()]
+            if POSITIVE_REQUEST_NEGATION_RE.search(prefix):
+                continue
+            return True
+        return False

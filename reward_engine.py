@@ -50,6 +50,15 @@ class RewardEngine:
         return ThreatLevel.CRITICAL
 
     @classmethod
+    def calculate(
+        cls,
+        action: ActionType,
+        risk_score: float,
+    ) -> tuple[float, bool, str]:
+        expected_action = cls.optimal_action(risk_score)
+        return cls.calculate_for_expected(action, expected_action)
+
+    @classmethod
     def calculate_for_expected(
         cls,
         action: ActionType,

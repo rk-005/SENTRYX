@@ -11,20 +11,20 @@ class RegexDetector:
         EntityType.EMAIL: re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
         EntityType.PHONE: re.compile(r"\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b"),
         EntityType.API_KEY: re.compile(
-            r"(?:api[_\-]?key|apikey|api_token|access_token)[=:\s]+['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
+            r"(?:api[_\-]?\s?key|apikey|api_token|access_token)\s*(?:=|:|is)\s*['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
             re.IGNORECASE,
         ),
         EntityType.CREDIT_CARD: re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b"),
         EntityType.PASSWORD: re.compile(
-            r"(?:password|passwd|pwd)[=:\s]+['\"]?([^'\"\s;]+)['\"]?",
+            r"(?:password|passwd|pwd)\s*(?:=|:|is)\s*['\"]?([^'\"\s;]+)['\"]?",
             re.IGNORECASE,
         ),
         EntityType.SECRET: re.compile(
-            r"(?:secret|api_secret|client_secret)[=:\s]+['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
+            r"(?:secret|api_secret|client_secret)\s*(?:=|:|is)\s*['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
             re.IGNORECASE,
         ),
         EntityType.TOKEN: re.compile(
-            r"(?:token|auth_token|bearer)[=:\s]+['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
+            r"(?:token|auth_token|bearer)\s*(?:=|:|is)\s*['\"]?([A-Za-z0-9_\-]{8,})['\"]?",
             re.IGNORECASE,
         ),
     }
@@ -48,9 +48,9 @@ class RegexDetector:
 
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 PHONE_RE = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}\b")
-PASSWORD_RE = re.compile(r"(?i)\b(?:password|passwd|pwd)\s*[:=]\s*([^\s,;]+)")
+PASSWORD_RE = re.compile(r"(?i)\b(?:password|passwd|pwd)\s*(?::|=|is)\s*([^\s,;]+)")
 API_KEY_RE = re.compile(
-    r"(?i)\b(?:api[_-]?key|access[_-]?token|secret[_-]?key)\b(?:\s*(?:[:=]|is)\s*)?([A-Za-z0-9_\-.]{8,})"
+    r"(?i)\b(?:api[_\s-]*key|access[_-]?token|secret[_-]?key)\b(?:\s*(?:[:=]|is)\s*)?([A-Za-z0-9_\-.]{8,})"
 )
 CREDIT_CARD_RE = re.compile(r"\b(?:\d{4}[- ]?){3}\d{4}\b")
 CONNECTION_STRING_RE = re.compile(r"(?i)\b(?:postgres|mysql|mongodb)(?:\+srv)?://\S+")
@@ -63,7 +63,7 @@ BLOCK_TERM_SCORES = {
     "bank account numbers": 65,
     "tax identification": 65,
     "medical condition": 65,
-    "api key": 50,
+    "api key": 70,
     "database connection string": 60,
     "internal server access url": 60,
     "export customer records": 70,
@@ -93,7 +93,11 @@ class SecurityDetector:
         reasons: list[str] = []
 
         if entities:
-            risk_score += min(20 * len(entities), 60)
+            high_impact_entities = {EntityType.API_KEY, EntityType.CREDIT_CARD, EntityType.PASSWORD}
+            if any(entity.type in high_impact_entities for entity in entities):
+                risk_score += 60
+            else:
+                risk_score += max(35, min(20 * len(entities), 60))
             reasons.append("Sensitive entities detected.")
 
         block_score = max((score for term, score in BLOCK_TERM_SCORES.items() if term in lower), default=0)

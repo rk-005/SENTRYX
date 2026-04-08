@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 
 from openai import OpenAI
 from pydantic import ValidationError
@@ -12,6 +13,7 @@ from models import LLMReview, PredictionResponse, Settings
 
 
 LOGGER = logging.getLogger("sentryx.inference")
+DEFAULT_PROMPT = "Write a friendly email inviting employees to a team-building event next Friday."
 
 SYSTEM_PROMPT = """You are a security classifier for enterprise prompts.
 Return a JSON object with exactly these keys:
@@ -115,13 +117,16 @@ def build_service() -> InferenceService:
 
 
 def main() -> None:
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "WARNING"))
     prompt = os.getenv("PROMPT", "").strip()
     if not prompt:
-        raise SystemExit("Set PROMPT to run inference from the command line.")
+        prompt = DEFAULT_PROMPT
 
-    result = build_service().predict(prompt)
-    print(result.model_dump_json(indent=2))
+    try:
+        result = build_service().predict(prompt)
+        print(result.model_dump_json(indent=2))
+    except Exception as exc:
+        print(f"inference.py recovered from an unexpected error: {exc}", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

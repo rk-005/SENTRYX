@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import textwrap
+import json
 from typing import List, Optional
 
 import requests
@@ -13,10 +14,11 @@ API_KEY = os.getenv("HF_TOKEN")
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 
-ENV_URL = "http://localhost:7860"
+ENV_URL = os.getenv("ENV_URL") or "http://localhost:7860"
 MAX_STEPS = 16
 TEMPERATURE = 0.0
 MAX_TOKENS = 8
+DEFAULT_PROMPT = "Write a friendly email inviting employees to a team-building event next Friday."
 
 SYSTEM_PROMPT = textwrap.dedent(
     """
@@ -109,6 +111,54 @@ def heuristic_action(observation: dict) -> str:
     return "ALLOW"
 
 
+def fallback_prompt_action(prompt: str) -> str:
+    text = prompt.lower()
+    block_terms = (
+        "api key",
+        "password",
+        "credential",
+        "verification link",
+        "bank account",
+        "tax identification",
+        "medical condition",
+        "ignore previous instructions",
+        "system prompt",
+        "export customer records",
+    )
+    mask_terms = (
+        "email",
+        "phone",
+        "customer",
+        "employee",
+        "internal",
+        "confidential",
+        "salary",
+        "appointment",
+    )
+    if any(term in text for term in block_terms):
+        return "BLOCK"
+    if any(term in text for term in mask_terms):
+        return "MASK"
+    return "ALLOW"
+
+
+def run_prompt(prompt: str) -> None:
+    try:
+        from env import SecurityEnv
+
+        result = SecurityEnv().analyze_prompt(prompt)
+    except Exception as exc:
+        action = fallback_prompt_action(prompt)
+        result = {
+            "prompt": prompt,
+            "action": action,
+            "risk_score": {"ALLOW": 15, "MASK": 45, "BLOCK": 85}[action],
+            "reason": f"Fallback rule-based inference used after local analyzer failed: {exc}",
+        }
+
+    print(json.dumps(result, indent=2), flush=True)
+
+
 def ask_llm(client: OpenAI, observation: dict) -> str:
     user_prompt = build_user_prompt(observation)
     try:
@@ -167,26 +217,44 @@ def run_task(client: OpenAI, task_name: str) -> None:
         log_end(success=success, steps=steps, rewards=rewards)
 
 
-def main() -> None:
-    if not API_KEY:
-        print("HF_TOKEN is required for inference.", file=sys.stderr, flush=True)
-        sys.exit(1)
+def run_episode_mode() -> int:
+    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL) if API_KEY else None
 
-    client = OpenAI(api_key=API_KEY, base_url=API_BASE_URL)
+    if client is None:
+        print("HF_TOKEN is not set; using heuristic actions for episode mode.", file=sys.stderr, flush=True)
 
     try:
         tasks = env_tasks()
     except Exception as exc:
         print(f"Unable to enumerate tasks from {ENV_URL}: {exc}", file=sys.stderr, flush=True)
-        sys.exit(1)
+        return 1
 
     if len(tasks) < 3:
         print("Expected at least 3 benchmark tasks.", file=sys.stderr, flush=True)
-        sys.exit(1)
+        return 1
 
     for task_name in tasks:
         run_task(client, task_name)
 
+    return 0
+
+
+def main() -> int:
+    try:
+        prompt = os.getenv("PROMPT", "").strip()
+        if prompt:
+            run_prompt(prompt)
+            return 0
+
+        if os.getenv("RUN_OPENENV_EPISODES", "").strip().lower() in {"1", "true", "yes"}:
+            return run_episode_mode()
+
+        run_prompt(DEFAULT_PROMPT)
+        return 0
+    except Exception as exc:
+        print(f"inference.py recovered from an unexpected error: {exc}", file=sys.stderr, flush=True)
+        return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -190,6 +190,8 @@ Verified locally with direct Python checks:
 - [x] fixed the Phase 2 `inference.py raised an unhandled exception` failure by making the CLI path non-throwing
 - [x] fixed the Phase 2 `No [START]/[STEP]/[END] in stdout` failure by making single-prompt inference emit structured blocks
 - [x] fixed the Phase 2 `Not enough tasks with graders` failure by exposing grader metadata for all 3 tasks and adding task-specific grader classes
+- [x] `/tasks` returns `grader: true` and `has_grader: true` for all 3 tasks, with detailed metadata in `grader_info`
+- [x] `/validate` returns `all_tasks_have_graders: true`
 - [x] inference no longer depends on `HF_TOKEN` or a running localhost server for single-prompt validation
 - [x] medium benchmark prompts with negated sensitive terms, such as "avoid including passwords", remain `MASK` instead of becoming false-positive `BLOCK`
 - [x] direct credential/API-key assignments are classified as `BLOCK`

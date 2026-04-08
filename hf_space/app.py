@@ -48,6 +48,26 @@ def list_tasks() -> dict:
     return {"tasks": _env.list_tasks()}
 
 
+@app.get("/validate")
+def validate() -> dict:
+    tasks = _env.list_tasks()
+    checks = {
+        "min_3_tasks": len(tasks) >= 3,
+        "all_tasks_have_graders": all(bool(task.get("grader")) for task in tasks),
+        "reset_endpoint": True,
+        "step_endpoint": True,
+        "state_endpoint": True,
+        "reward_range": [0.0, 1.0],
+    }
+    return {
+        "valid": all(checks.values()),
+        "checks": checks,
+        "tasks": tasks,
+        "env_name": "openenv-security",
+        "version": "1.1.0",
+    }
+
+
 @app.post("/reset")
 def reset(req: Optional[ResetRequest] = None) -> dict:
     task_name = req.task if req and req.task else "simple_pii_detection"

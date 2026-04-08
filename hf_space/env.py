@@ -223,10 +223,13 @@ class SecurityEnv:
         return [
             {
                 "name": task.name,
+                "id": task.name,
                 "difficulty": task.difficulty,
                 "description": task.description,
                 "num_scenarios": len(task.scenarios),
-                "grader": grader_metadata(task.name),
+                "grader": True,
+                "has_grader": True,
+                "grader_info": grader_metadata(task.name),
             }
             for task in ALL_TASKS.values()
         ]

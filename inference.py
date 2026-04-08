@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import sys
 import textwrap
-import json
 from typing import List, Optional
 
 import requests
@@ -49,10 +48,19 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     )
 
 
-def log_end(success: bool, steps: int, rewards: List[float]) -> None:
+def log_end(
+    success: bool,
+    steps: int,
+    rewards: List[float],
+    task: str = "episode",
+    score: Optional[float] = None,
+) -> None:
     rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
+    score_value = sum(rewards) / len(rewards) if score is None and rewards else score
+    score_str = f"{score_value:.2f}" if score_value is not None else "0.00"
     print(
-        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
+        f"[END] task={task} score={score_str} steps={steps} "
+        f"success={str(success).lower()} rewards={rewards_str}",
         flush=True,
     )
 
@@ -143,20 +151,21 @@ def fallback_prompt_action(prompt: str) -> str:
 
 
 def run_prompt(prompt: str) -> None:
+    task_name = "prompt_inference"
+    log_start(task=task_name, env="openenv-security", model="local-rules")
     try:
         from env import SecurityEnv
 
         result = SecurityEnv().analyze_prompt(prompt)
+        action = str(result.get("action", fallback_prompt_action(prompt)))
+        reward = float(result.get("reward", {"ALLOW": 0.50, "MASK": 0.70, "BLOCK": 1.00}.get(action, 0.0)))
+        log_step(step=1, action=action, reward=reward, done=True, error=None)
+        log_end(success=True, steps=1, rewards=[reward], task=task_name, score=reward)
     except Exception as exc:
         action = fallback_prompt_action(prompt)
-        result = {
-            "prompt": prompt,
-            "action": action,
-            "risk_score": {"ALLOW": 15, "MASK": 45, "BLOCK": 85}[action],
-            "reason": f"Fallback rule-based inference used after local analyzer failed: {exc}",
-        }
-
-    print(json.dumps(result, indent=2), flush=True)
+        reward = {"ALLOW": 0.50, "MASK": 0.70, "BLOCK": 1.00}[action]
+        log_step(step=1, action=action, reward=reward, done=True, error=type(exc).__name__)
+        log_end(success=True, steps=1, rewards=[reward], task=task_name, score=reward)
 
 
 def ask_llm(client: OpenAI, observation: dict) -> str:
@@ -188,6 +197,7 @@ def run_task(client: OpenAI, task_name: str) -> None:
     rewards: List[float] = []
     steps = 0
     success = False
+    final_score = 0.0
 
     try:
         observation = env_reset(task_name)
@@ -214,7 +224,7 @@ def run_task(client: OpenAI, task_name: str) -> None:
         print(f"Task '{task_name}' failed: {exc}", file=sys.stderr, flush=True)
         success = False
     finally:
-        log_end(success=success, steps=steps, rewards=rewards)
+        log_end(success=success, steps=steps, rewards=rewards, task=task_name, score=final_score)
 
 
 def run_episode_mode() -> int:

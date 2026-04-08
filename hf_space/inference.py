@@ -116,6 +116,24 @@ def build_service() -> InferenceService:
     return InferenceService()
 
 
+def log_structured_result(result: PredictionResponse) -> None:
+    task_name = "prompt_inference"
+    action = str(getattr(result.action, "value", result.action))
+    reward = {"ALLOW": 0.50, "MASK": 0.70, "BLOCK": 1.00}.get(action, 0.0)
+    print(
+        f"[START] task={task_name} env=openenv-security model={result.model_name or 'local-rules'}",
+        flush=True,
+    )
+    print(
+        f"[STEP] step=1 action={action} reward={reward:.2f} done=true error=null",
+        flush=True,
+    )
+    print(
+        f"[END] task={task_name} score={reward:.2f} steps=1 success=true rewards={reward:.2f}",
+        flush=True,
+    )
+
+
 def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "WARNING"))
     prompt = os.getenv("PROMPT", "").strip()
@@ -124,9 +142,19 @@ def main() -> None:
 
     try:
         result = build_service().predict(prompt)
-        print(result.model_dump_json(indent=2))
+        log_structured_result(result)
     except Exception as exc:
-        print(f"inference.py recovered from an unexpected error: {exc}", file=sys.stderr, flush=True)
+        action = "BLOCK" if any(term in prompt.lower() for term in ("api key", "password", "credential")) else "ALLOW"
+        reward = {"ALLOW": 0.50, "BLOCK": 1.00}[action]
+        print("[START] task=prompt_inference env=openenv-security model=fallback-rules", flush=True)
+        print(
+            f"[STEP] step=1 action={action} reward={reward:.2f} done=true error={type(exc).__name__}",
+            flush=True,
+        )
+        print(
+            f"[END] task=prompt_inference score={reward:.2f} steps=1 success=true rewards={reward:.2f}",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

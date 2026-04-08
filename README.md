@@ -161,9 +161,9 @@ Required Space settings:
 - [x] `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN` are present in root `inference.py`
 - [x] defaults are set only for `API_BASE_URL` and `MODEL_NAME`
 - [x] LLM calls use the OpenAI client
-- [x] command-line inference supports `PROMPT` and exits cleanly with JSON output
+- [x] command-line inference supports `PROMPT` and exits cleanly with `[START]`, `[STEP]`, and `[END]` structured stdout blocks
 - [x] missing `PROMPT` falls back to a safe smoke-test prompt instead of raising an exception
-- [x] episode-mode logs still support `[START]`, `[STEP]`, `[END]` when `RUN_OPENENV_EPISODES=1`
+- [x] episode-mode logs also support `[START]`, `[STEP]`, `[END]` when `RUN_OPENENV_EPISODES=1`
 
 ### Root API Contract
 
@@ -181,13 +181,14 @@ Verified locally with direct Python checks:
 - imports for `app`, `server`, `env`, `tasks`, and `inference` passed
 - `/tasks`, `/reset`, `/step`, and `/state` all passed through `TestClient`
 - perfect action sequences for all 3 tasks produced final score `1.0`
-- root and `hf_space/` inference CLIs emit JSON and exit `0` with or without `PROMPT`
+- root and `hf_space/` inference CLIs emit structured `[START]`, `[STEP]`, `[END]` blocks and exit `0` with or without `PROMPT`
 - root prompt smoke tests classify email as `MASK`, API key exposure as `BLOCK`, and prompt injection as `BLOCK`
 - OpenEnv CLI validation passed: `[OK] openenv-security: Ready for multi-mode deployment`
 
 ### Phase 2 Fixes
 
 - [x] fixed the Phase 2 `inference.py raised an unhandled exception` failure by making the CLI path non-throwing
+- [x] fixed the Phase 2 `No [START]/[STEP]/[END] in stdout` failure by making single-prompt inference emit structured blocks
 - [x] inference no longer depends on `HF_TOKEN` or a running localhost server for single-prompt validation
 - [x] medium benchmark prompts with negated sensitive terms, such as "avoid including passwords", remain `MASK` instead of becoming false-positive `BLOCK`
 - [x] direct credential/API-key assignments are classified as `BLOCK`

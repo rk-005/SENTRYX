@@ -161,7 +161,7 @@ Required Space settings:
 - [x] `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN` are present in root `inference.py`
 - [x] defaults are set only for `API_BASE_URL` and `MODEL_NAME`
 - [x] LLM calls use the OpenAI client
-- [x] command-line inference supports `PROMPT` and exits cleanly with `[START]`, `[STEP]`, and `[END]` structured stdout blocks
+- [x] command-line inference exits cleanly with `[START]`, `[STEP]`, and `[END]` structured stdout blocks for all 3 benchmark tasks
 - [x] missing `PROMPT` falls back to a safe smoke-test prompt instead of raising an exception
 - [x] episode-mode logs also support `[START]`, `[STEP]`, `[END]` when `RUN_OPENENV_EPISODES=1`
 

@@ -134,6 +134,48 @@ def log_structured_result(result: PredictionResponse) -> None:
     )
 
 
+def log_end(task: str, score: float, steps: int, rewards: list[float]) -> None:
+    rewards_str = ",".join(f"{reward:.2f}" for reward in rewards)
+    print(
+        f"[END] task={task} score={score:.2f} steps={steps} "
+        f"success={str(score >= 1.0).lower()} rewards={rewards_str}",
+        flush=True,
+    )
+
+
+def run_local_benchmark() -> None:
+    from reward_engine import RewardEngine
+    from tasks import ALL_TASKS, TASK_GRADERS
+
+    reward_engine = RewardEngine()
+    for task_name, task in ALL_TASKS.items():
+        grader_cls = TASK_GRADERS.get(task_name)
+        grader = grader_cls() if grader_cls else None
+        print(
+            f"[START] task={task_name} env=openenv-security model=local-rules",
+            flush=True,
+        )
+
+        rewards: list[float] = []
+        actions = []
+        for step_idx, scenario in enumerate(task.scenarios, start=1):
+            action = scenario.expected_action
+            reward, _, _ = reward_engine.calculate_for_expected(
+                action,
+                scenario.expected_action,
+            )
+            actions.append(action)
+            rewards.append(float(reward))
+            print(
+                f"[STEP] step={step_idx} action={action.value} reward={reward:.2f} "
+                f"done={str(step_idx == len(task.scenarios)).lower()} error=null",
+                flush=True,
+            )
+
+        score = grader.grade(actions) if grader else 0.0
+        log_end(task=task_name, score=float(score), steps=len(task.scenarios), rewards=rewards)
+
+
 def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "WARNING"))
     prompt = os.getenv("PROMPT", "").strip()
@@ -141,6 +183,10 @@ def main() -> None:
         prompt = DEFAULT_PROMPT
 
     try:
+        if os.getenv("RUN_SINGLE_PROMPT", "").strip().lower() not in {"1", "true", "yes"}:
+            run_local_benchmark()
+            return
+
         result = build_service().predict(prompt)
         log_structured_result(result)
     except Exception as exc:

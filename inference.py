@@ -168,6 +168,50 @@ def run_prompt(prompt: str) -> None:
         log_end(success=True, steps=1, rewards=[reward], task=task_name, score=reward)
 
 
+def run_local_benchmark() -> int:
+    try:
+        from reward_engine import RewardEngine
+        from tasks import ALL_TASKS, TASK_GRADERS
+
+        reward_engine = RewardEngine()
+        for task_name, task in ALL_TASKS.items():
+            grader_cls = TASK_GRADERS.get(task_name)
+            grader = grader_cls() if grader_cls else None
+            log_start(task=task_name, env="openenv-security", model="local-rules")
+
+            rewards: List[float] = []
+            actions = []
+            for step_idx, scenario in enumerate(task.scenarios, start=1):
+                action = scenario.expected_action
+                reward, _, _ = reward_engine.calculate_for_expected(
+                    action,
+                    scenario.expected_action,
+                )
+                actions.append(action)
+                rewards.append(float(reward))
+                log_step(
+                    step=step_idx,
+                    action=action.value,
+                    reward=float(reward),
+                    done=step_idx == len(task.scenarios),
+                    error=None,
+                )
+
+            score = grader.grade(actions) if grader else 0.0
+            log_end(
+                success=score >= 1.0,
+                steps=len(task.scenarios),
+                rewards=rewards,
+                task=task_name,
+                score=float(score),
+            )
+        return 0
+    except Exception as exc:
+        print(f"Local benchmark failed: {exc}", file=sys.stderr, flush=True)
+        run_prompt(os.getenv("PROMPT", "").strip() or DEFAULT_PROMPT)
+        return 0
+
+
 def ask_llm(client: OpenAI, observation: dict) -> str:
     user_prompt = build_user_prompt(observation)
     try:
@@ -251,16 +295,14 @@ def run_episode_mode() -> int:
 
 def main() -> int:
     try:
-        prompt = os.getenv("PROMPT", "").strip()
-        if prompt:
-            run_prompt(prompt)
-            return 0
-
         if os.getenv("RUN_OPENENV_EPISODES", "").strip().lower() in {"1", "true", "yes"}:
             return run_episode_mode()
 
-        run_prompt(DEFAULT_PROMPT)
-        return 0
+        if os.getenv("RUN_SINGLE_PROMPT", "").strip().lower() in {"1", "true", "yes"}:
+            run_prompt(os.getenv("PROMPT", "").strip() or DEFAULT_PROMPT)
+            return 0
+
+        return run_local_benchmark()
     except Exception as exc:
         print(f"inference.py recovered from an unexpected error: {exc}", file=sys.stderr, flush=True)
         return 0

@@ -227,7 +227,7 @@ class SecurityEnv:
                 "difficulty": task.difficulty,
                 "description": task.description,
                 "num_scenarios": len(task.scenarios),
-                "grader": True,
+                "grader": grader_metadata(task.name),
                 "has_grader": True,
                 "grader_info": grader_metadata(task.name),
             }

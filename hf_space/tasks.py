@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from models import ActionType
 
@@ -261,13 +261,54 @@ def _is_adjacent(a: ActionType, b: ActionType) -> bool:
 class TaskGrader:
     """Grades agent performance on a specific task."""
 
-    def __init__(self, task: TaskDefinition):
+    def __init__(self, task: Optional[TaskDefinition | str] = None):
+        if isinstance(task, str):
+            task = ALL_TASKS.get(task)
         self.task = task
 
     def grade(self, actions: List[ActionType]) -> float:
+        if self.task is None:
+            return 0.0
         expected = [scenario.expected_action for scenario in self.task.scenarios]
         return grade_actions(expected, actions)
 
     @property
     def num_scenarios(self) -> int:
-        return len(self.task.scenarios)
+        return len(self.task.scenarios) if self.task else 0
+
+
+class SimplePIIDetectionGrader(TaskGrader):
+    """Grader for the simple_pii_detection task."""
+
+    def __init__(self):
+        super().__init__(TASK_SIMPLE_PII)
+
+
+class ThreatClassificationGrader(TaskGrader):
+    """Grader for the threat_classification task."""
+
+    def __init__(self):
+        super().__init__(TASK_THREAT_CLASSIFICATION)
+
+
+class MultiStepAttackGrader(TaskGrader):
+    """Grader for the multi_step_attack task."""
+
+    def __init__(self):
+        super().__init__(TASK_MULTI_STEP_ATTACK)
+
+
+TASK_GRADERS: Dict[str, type[TaskGrader]] = {
+    TASK_SIMPLE_PII.name: SimplePIIDetectionGrader,
+    TASK_THREAT_CLASSIFICATION.name: ThreatClassificationGrader,
+    TASK_MULTI_STEP_ATTACK.name: MultiStepAttackGrader,
+}
+
+
+def grader_metadata(task_name: str) -> dict:
+    grader_cls = TASK_GRADERS.get(task_name, TaskGrader)
+    return {
+        "module": "tasks",
+        "class": grader_cls.__name__,
+        "score_range": [0.0, 1.0],
+    }

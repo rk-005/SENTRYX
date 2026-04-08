@@ -20,7 +20,7 @@ from models import (
     ThreatLevel,
 )
 from reward_engine import RewardEngine
-from tasks import ALL_TASKS, TaskDefinition, TaskGrader
+from tasks import ALL_TASKS, TaskDefinition, TaskGrader, grader_metadata
 
 
 NEGATED_SENSITIVE_RE = re.compile(
@@ -226,6 +226,7 @@ class SecurityEnv:
                 "difficulty": task.difficulty,
                 "description": task.description,
                 "num_scenarios": len(task.scenarios),
+                "grader": grader_metadata(task.name),
             }
             for task in ALL_TASKS.values()
         ]

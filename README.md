@@ -5,7 +5,7 @@
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-ff4b4b.svg)](https://streamlit.io/)
 [![Docker](https://img.shields.io/badge/Deploy-HuggingFace%20Docker-blue.svg)](https://huggingface.co/spaces/rk-005/openenv-security)
 
-SENTRYX is an AI security system for prompt risk analysis and data leakage prevention. The repository contains:
+SENTRYX is an security system for prompt risk analysis and data leakage prevention. The repository contains:
 
 - the full local software stack with backend plus dashboard
 - benchmark scenarios for low, medium, and high risk prompts

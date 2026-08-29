@@ -43,6 +43,14 @@ def root() -> HealthResponse:
     return HealthResponse(status="online", service="openenv-security")
 
 
+@app.get("/health")
+def health() -> dict:
+    """Lightweight endpoint for uptime monitors (UptimeRobot, Freshping, etc.).
+    Returns 200 OK immediately without touching the environment state.
+    """
+    return {"status": "ok"}
+
+
 @app.get("/tasks")
 def list_tasks() -> dict:
     return {"tasks": _env.list_tasks()}

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sentryx
+    runtime: docker
+    plan: free
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 7860
+      - key: API_BASE_URL
+        sync: false
+      - key: MODEL_NAME
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+    healthCheckPath: /

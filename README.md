@@ -3,14 +3,25 @@
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-ff4b4b.svg)](https://streamlit.io/)
-[![Docker](https://img.shields.io/badge/Deploy-HuggingFace%20Docker-blue.svg)](https://huggingface.co/spaces/rk-005/openenv-security)
+[![Render](https://img.shields.io/badge/Backend-Render-46E3B7.svg)](https://sentryx.onrender.com)
+[![Streamlit App](https://img.shields.io/badge/Dashboard-Streamlit%20Cloud-ff4b4b.svg)](https://sentryx-jtjauumccwcxjmel5eypzh.streamlit.app/)
+[![Docker](https://img.shields.io/badge/Deploy-Docker-2496ED.svg)](https://github.com/rk-005/SENTRYX/blob/main/Dockerfile)
 
-SENTRYX is an security system for prompt risk analysis and data leakage prevention. The repository contains:
+SENTRYX is a security system for prompt risk analysis and data leakage prevention. The repository contains:
 
 - the full local software stack with backend plus dashboard
 - benchmark scenarios for low, medium, and high risk prompts
 - a separate Hugging Face deploy bundle in `hf_space/`
 - a restored root OpenEnv benchmark path for validator-style submission checks
+
+## ðŸš€ Live Deployment
+
+| Service | URL |
+|---|---|
+| **Dashboard (Streamlit)** | https://sentryx-jtjauumccwcxjmel5eypzh.streamlit.app/ |
+| **Backend API (Render)** | https://sentryx.onrender.com |
+| **API Docs (Swagger)** | https://sentryx.onrender.com/docs |
+| **Health Check** | https://sentryx.onrender.com/health |
 
 ## Core Policy
 
@@ -113,7 +124,7 @@ Use Python `3.12`.
 Install dependencies:
 
 ```powershell
-cd "\ai secure\openenv-security"
+cd "ai secure\openenv-security"
 py -3.12 -m pip install -r requirements.txt
 ```
 
@@ -130,6 +141,32 @@ Run the dashboard:
 cd "ai secure\openenv-security"
 .\start_dashboard.ps1
 ```
+
+## Render Deployment
+
+The backend API is deployed on Render using Docker:
+
+- **URL**: https://sentryx.onrender.com
+- **Runtime**: Docker (python:3.11-slim)
+- **Port**: 7860
+
+Required environment variables:
+
+- `API_BASE_URL=https://router.huggingface.co/v1`
+- `MODEL_NAME=Qwen/Qwen2.5-72B-Instruct`
+- `HF_TOKEN=<token with Inference permission>`
+
+## Streamlit Cloud Deployment
+
+The dashboard is deployed on Streamlit Community Cloud:
+
+- **URL**: https://sentryx-jtjauumccwcxjmel5eypzh.streamlit.app/
+- **Main file**: `Dashboard/Dashboard.py`
+- **Requirements**: `Dashboard/requirements.txt`
+
+Required secret:
+
+- `SENTRYX_API_URL=https://sentryx.onrender.com`
 
 ## Hugging Face Deployment
 
@@ -168,6 +205,7 @@ Required Space settings:
 ### Root API Contract
 
 - [x] `GET /` returns `status=online`
+- [x] `GET /health` returns `status=ok` (uptime monitor endpoint)
 - [x] `GET /tasks` returns all 3 benchmark tasks
 - [x] `POST /reset` works for `simple_pii_detection`, `threat_classification`, and `multi_step_attack`
 - [x] `POST /step` returns rewards in the `0.0-1.0` range
@@ -211,6 +249,7 @@ openenv-security/
 +-- inference.py
 +-- models.py
 +-- openenv.yaml
++-- render.yaml
 +-- reward_engine.py
 +-- server.py
 +-- tasks.py

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import requests
 
-API_BASE = "http://localhost:7860"
+# Uses SENTRYX_API_URL env var so the dashboard works both locally and on
+# Streamlit Cloud. Falls back to the live Render deployment.
+API_BASE = os.getenv("SENTRYX_API_URL", "https://sentryx.onrender.com").rstrip("/")
 TIMEOUT = 10
 
 
@@ -25,8 +28,8 @@ def _post(endpoint: str, payload: dict) -> dict:
         return response.json()
     except requests.ConnectionError as exc:
         raise APIError(
-            "Cannot connect to the SENTRYX backend at localhost:7860. "
-            "Start it with: py -3.12 server.py"
+            f"Cannot connect to the SENTRYX backend at {API_BASE}. "
+            "Check that the backend is running."
         ) from exc
     except requests.Timeout as exc:
         raise APIError(f"Request to {endpoint} timed out after {TIMEOUT}s.") from exc
@@ -48,7 +51,7 @@ def _get(endpoint: str) -> dict:
         response.raise_for_status()
         return response.json()
     except requests.ConnectionError as exc:
-        raise APIError("Cannot connect to the SENTRYX backend at localhost:7860.") from exc
+        raise APIError(f"Cannot connect to the SENTRYX backend at {API_BASE}.") from exc
     except requests.Timeout as exc:
         raise APIError(f"GET {endpoint} timed out.") from exc
     except requests.HTTPError as exc:
@@ -57,8 +60,8 @@ def _get(endpoint: str) -> dict:
 
 def health_check() -> bool:
     try:
-        data = _get("/")
-        return data.get("status") == "online"
+        data = _get("/health")
+        return data.get("status") == "ok"
     except APIError:
         return False
 
